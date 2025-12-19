@@ -12,7 +12,7 @@ JWT_SECRET="${JWT_SECRET:-your-super-secret-jwt-key-minimum-32-characters}"
 SKIP_DB="${SKIP_DB:-false}"
 SKIP_CLONE="${SKIP_CLONE:-false}"
 WORK_DIR="${WORK_DIR:-/tmp/mobile-banking}"
-IMAGE_REGISTRY="${IMAGE_REGISTRY:-}"
+IMAGE_REGISTRY="${IMAGE_REGISTRY:-us-central1-docker.pkg.dev/mobile-banking-app-2/mobile-banking}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 
 print_usage() {
