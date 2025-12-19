@@ -12,6 +12,8 @@ JWT_SECRET="${JWT_SECRET:-}"
 SKIP_DB="${SKIP_DB:-false}"
 SKIP_CLONE="${SKIP_CLONE:-false}"
 WORK_DIR="${WORK_DIR:-/tmp/mobile-banking}"
+IMAGE_REGISTRY="${IMAGE_REGISTRY:-}"
+IMAGE_TAG="${IMAGE_TAG:-latest}"
 
 print_usage() {
     echo ""
@@ -20,20 +22,26 @@ print_usage() {
     echo "Required Environment Variables:"
     echo "  DB_PASSWORD       Password for PostgreSQL databases"
     echo "  JWT_SECRET        Secret key for JWT signing (min 32 chars)"
+    echo "  IMAGE_REGISTRY    Container registry URL (e.g., us-central1-docker.pkg.dev/PROJECT/mobile-banking)"
     echo ""
     echo "Optional Environment Variables:"
     echo "  NAMESPACE         Kubernetes namespace (default: mobile-banking-dev)"
     echo "  WORK_DIR          Working directory for cloned repos (default: /tmp/mobile-banking)"
     echo "  SKIP_DB           Skip database deployment (default: false)"
     echo "  SKIP_CLONE        Skip cloning repos if already cloned (default: false)"
+    echo "  IMAGE_TAG         Docker image tag (default: latest)"
     echo ""
     echo "Prerequisites:"
     echo "  - GKE cluster created and kubectl configured"
     echo "  - Helm 3.12+ installed"
     echo "  - Git installed"
+    echo "  - Docker images built and pushed (use build-and-push-images.sh)"
     echo ""
     echo "Example:"
-    echo "  DB_PASSWORD=mypassword JWT_SECRET=my-32-char-secret-key-for-jwt ./deploy-services.sh"
+    echo "  DB_PASSWORD=mypassword \\"
+    echo "  JWT_SECRET=my-32-char-secret-key-for-jwt \\"
+    echo "  IMAGE_REGISTRY=us-central1-docker.pkg.dev/my-project/mobile-banking \\"
+    echo "  ./deploy-services.sh"
     echo ""
 }
 
@@ -51,6 +59,13 @@ fi
 
 if [ ${#JWT_SECRET} -lt 32 ]; then
     echo "ERROR: JWT_SECRET must be at least 32 characters"
+    exit 1
+fi
+
+if [ -z "$IMAGE_REGISTRY" ]; then
+    echo "ERROR: IMAGE_REGISTRY environment variable is required"
+    echo "Example: IMAGE_REGISTRY=us-central1-docker.pkg.dev/my-project/mobile-banking"
+    print_usage
     exit 1
 fi
 
@@ -191,8 +206,8 @@ deploy_auth_service() {
     cat > /tmp/auth-values.yaml <<EOF
 replicaCount: 1
 image:
-  repository: mobilebanking/auth-service
-  tag: latest
+  repository: ${IMAGE_REGISTRY}/auth-service
+  tag: ${IMAGE_TAG}
   pullPolicy: IfNotPresent
 autoscaling:
   enabled: false
@@ -258,8 +273,8 @@ deploy_user_service() {
     cat > /tmp/user-values.yaml <<EOF
 replicaCount: 1
 image:
-  repository: mobilebanking/user-service
-  tag: latest
+  repository: ${IMAGE_REGISTRY}/user-service
+  tag: ${IMAGE_TAG}
   pullPolicy: IfNotPresent
 autoscaling:
   enabled: false
@@ -323,8 +338,8 @@ deploy_api_gateway() {
     cat > /tmp/gateway-values.yaml <<EOF
 replicaCount: 1
 image:
-  repository: mobilebanking/api-gateway
-  tag: latest
+  repository: ${IMAGE_REGISTRY}/api-gateway
+  tag: ${IMAGE_TAG}
   pullPolicy: IfNotPresent
 autoscaling:
   enabled: false
