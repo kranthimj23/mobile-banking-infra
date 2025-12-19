@@ -187,22 +187,57 @@ deploy_auth_service() {
         exit 1
     fi
     
+    # Create runtime values file with correct env array format
+    cat > /tmp/auth-values.yaml <<EOF
+replicaCount: 1
+image:
+  repository: mobilebanking/auth-service
+  tag: latest
+  pullPolicy: IfNotPresent
+autoscaling:
+  enabled: false
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "dev"
+  - name: SERVER_PORT
+    value: "8081"
+  - name: DB_HOST
+    value: "postgres-auth-postgresql"
+  - name: DB_PORT
+    value: "5432"
+  - name: DB_NAME
+    value: "auth_db"
+  - name: DB_USERNAME
+    value: "postgres"
+  - name: DB_PASSWORD
+    value: "$DB_PASSWORD"
+  - name: JWT_SECRET
+    value: "$JWT_SECRET"
+envFrom: []
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 100m
+  limits:
+    memory: 512Mi
+    cpu: 500m
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8081
+  initialDelaySeconds: 120
+  periodSeconds: 10
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8081
+  initialDelaySeconds: 60
+  periodSeconds: 5
+EOF
+    
     helm upgrade --install auth-service ./helm \
         --namespace "$NAMESPACE" \
-        --set image.repository=openjdk \
-        --set image.tag=17-slim \
-        --set env.SPRING_PROFILES_ACTIVE=dev \
-        --set env.DB_HOST=postgres-auth-postgresql \
-        --set env.DB_PORT=5432 \
-        --set env.DB_NAME=auth_db \
-        --set env.DB_USERNAME=postgres \
-        --set env.DB_PASSWORD="$DB_PASSWORD" \
-        --set env.JWT_SECRET="$JWT_SECRET" \
-        --set replicaCount=1 \
-        --set resources.requests.memory=256Mi \
-        --set resources.requests.cpu=100m \
-        --set resources.limits.memory=512Mi \
-        --set resources.limits.cpu=500m \
+        -f /tmp/auth-values.yaml \
         --timeout=5m
     
     echo "Auth Service deployed"
@@ -219,21 +254,55 @@ deploy_user_service() {
         exit 1
     fi
     
+    # Create runtime values file with correct env array format
+    cat > /tmp/user-values.yaml <<EOF
+replicaCount: 1
+image:
+  repository: mobilebanking/user-service
+  tag: latest
+  pullPolicy: IfNotPresent
+autoscaling:
+  enabled: false
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "dev"
+  - name: SERVER_PORT
+    value: "8082"
+  - name: DB_HOST
+    value: "postgres-user-postgresql"
+  - name: DB_PORT
+    value: "5432"
+  - name: DB_NAME
+    value: "user_db"
+  - name: DB_USERNAME
+    value: "postgres"
+  - name: DB_PASSWORD
+    value: "$DB_PASSWORD"
+envFrom: []
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 100m
+  limits:
+    memory: 512Mi
+    cpu: 500m
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8082
+  initialDelaySeconds: 120
+  periodSeconds: 10
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8082
+  initialDelaySeconds: 60
+  periodSeconds: 5
+EOF
+    
     helm upgrade --install user-service ./helm \
         --namespace "$NAMESPACE" \
-        --set image.repository=openjdk \
-        --set image.tag=17-slim \
-        --set env.SPRING_PROFILES_ACTIVE=dev \
-        --set env.DB_HOST=postgres-user-postgresql \
-        --set env.DB_PORT=5432 \
-        --set env.DB_NAME=user_db \
-        --set env.DB_USERNAME=postgres \
-        --set env.DB_PASSWORD="$DB_PASSWORD" \
-        --set replicaCount=1 \
-        --set resources.requests.memory=256Mi \
-        --set resources.requests.cpu=100m \
-        --set resources.limits.memory=512Mi \
-        --set resources.limits.cpu=500m \
+        -f /tmp/user-values.yaml \
         --timeout=5m
     
     echo "User Service deployed"
@@ -250,20 +319,55 @@ deploy_api_gateway() {
         exit 1
     fi
     
+    # Create runtime values file with correct env array format
+    cat > /tmp/gateway-values.yaml <<EOF
+replicaCount: 1
+image:
+  repository: mobilebanking/api-gateway
+  tag: latest
+  pullPolicy: IfNotPresent
+autoscaling:
+  enabled: false
+service:
+  type: LoadBalancer
+  port: 8080
+  targetPort: 8080
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "dev"
+  - name: SERVER_PORT
+    value: "8080"
+  - name: AUTH_SERVICE_URL
+    value: "http://auth-service:8081"
+  - name: USER_SERVICE_URL
+    value: "http://user-service:8082"
+  - name: JWT_SECRET
+    value: "$JWT_SECRET"
+envFrom: []
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 100m
+  limits:
+    memory: 512Mi
+    cpu: 500m
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 120
+  periodSeconds: 10
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 60
+  periodSeconds: 5
+EOF
+    
     helm upgrade --install api-gateway ./helm \
         --namespace "$NAMESPACE" \
-        --set image.repository=openjdk \
-        --set image.tag=17-slim \
-        --set env.SPRING_PROFILES_ACTIVE=dev \
-        --set env.AUTH_SERVICE_URL=http://auth-service:8081 \
-        --set env.USER_SERVICE_URL=http://user-service:8082 \
-        --set env.JWT_SECRET="$JWT_SECRET" \
-        --set replicaCount=1 \
-        --set service.type=LoadBalancer \
-        --set resources.requests.memory=256Mi \
-        --set resources.requests.cpu=100m \
-        --set resources.limits.memory=512Mi \
-        --set resources.limits.cpu=500m \
+        -f /tmp/gateway-values.yaml \
         --timeout=5m
     
     echo "API Gateway deployed"
